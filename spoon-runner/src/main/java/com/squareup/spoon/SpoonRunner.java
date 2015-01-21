@@ -9,6 +9,7 @@ import com.beust.jcommander.ParameterException;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
 import com.squareup.spoon.html.HtmlRenderer;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
@@ -16,6 +17,7 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+
 import org.apache.commons.io.FileUtils;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -42,6 +44,7 @@ public final class SpoonRunner {
   private final int adbTimeout;
   private final String className;
   private final String methodName;
+  private final boolean noScreenshots;
   private final Set<String> serials;
   private final String classpath;
   private final IRemoteAndroidTestRunner.TestSize testSize;
@@ -50,7 +53,7 @@ public final class SpoonRunner {
   private SpoonRunner(String title, File androidSdk, File applicationApk, File instrumentationApk,
       File output, boolean debug, boolean noAnimations, int adbTimeout, Set<String> serials,
       String classpath, String className, String methodName,
-      IRemoteAndroidTestRunner.TestSize testSize, boolean failIfNoDeviceConnected) {
+      IRemoteAndroidTestRunner.TestSize testSize, boolean failIfNoDeviceConnected, boolean noScreenshots) {
     this.title = title;
     this.androidSdk = androidSdk;
     this.applicationApk = applicationApk;
@@ -62,6 +65,7 @@ public final class SpoonRunner {
     this.className = className;
     this.methodName = methodName;
     this.classpath = classpath;
+    this.noScreenshots = noScreenshots;
     this.testSize = testSize;
     this.serials = ImmutableSet.copyOf(serials);
     this.failIfNoDeviceConnected = failIfNoDeviceConnected;
@@ -196,7 +200,7 @@ public final class SpoonRunner {
 
   private SpoonDeviceRunner getTestRunner(String serial, SpoonInstrumentationInfo testInfo) {
     return new SpoonDeviceRunner(androidSdk, applicationApk, instrumentationApk, output, serial,
-        debug, noAnimations, adbTimeout, classpath, testInfo, className, methodName, testSize);
+        debug, noAnimations, adbTimeout, classpath, testInfo, className, methodName, testSize, noScreenshots);
   }
 
   /** Build a test suite for the specified devices and configuration. */
@@ -211,6 +215,7 @@ public final class SpoonRunner {
     private String classpath = System.getProperty("java.class.path");
     private String className;
     private String methodName;
+    private boolean noScreenshots;
     private boolean noAnimations;
     private IRemoteAndroidTestRunner.TestSize testSize;
     private int adbTimeout;
@@ -263,6 +268,12 @@ public final class SpoonRunner {
     /** Whether or not animations are enabled. */
     public Builder setNoAnimations(boolean noAnimations) {
       this.noAnimations = noAnimations;
+      return this;
+    }
+    
+    /** Whether or not screenshot grabbing is enabled. */
+    public Builder setNoScreenshots(boolean noScreenshots) {
+      this.noScreenshots = noScreenshots;
       return this;
     }
 
@@ -336,7 +347,7 @@ public final class SpoonRunner {
 
       return new SpoonRunner(title, androidSdk, applicationApk, instrumentationApk, output, debug,
           noAnimations, adbTimeout, serials, classpath, className, methodName, testSize,
-          failIfNoDeviceConnected);
+          failIfNoDeviceConnected, noScreenshots);
     }
   }
 
@@ -358,6 +369,9 @@ public final class SpoonRunner {
     @Parameter(names = { "--method-name" }, description =
         "Test method name to run (must also use --class-name)")
     public String methodName;
+    
+    @Parameter(names = { "--no-screenshots" }, description = "Disable screenshot grabbing")
+    public boolean noScreenshots;
 
     @Parameter(names = { "--size" }, converter = TestSizeConverter.class,
         description = "Only run methods with corresponding size annotation (small, medium, large)")
@@ -447,6 +461,7 @@ public final class SpoonRunner {
         .setFailIfNoDeviceConnected(parsedArgs.failIfNoDeviceConnected)
         .setClassName(parsedArgs.className)
         .setMethodName(parsedArgs.methodName)
+        .setNoScreenshots(parsedArgs.noScreenshots)
         .useAllAttachedDevices()
         .build();
 
